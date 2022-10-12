@@ -8,24 +8,9 @@ from config import get_settings
 
 from db.tables import url_codes_table, url_codes_stat_table
 from storage.models import CodeStorageGet
+from storage.errors import ShortCodeCreateError, ShortCodeDecodeError, ShortCodeNotFound, ShortCodeConfigError
 
 hash_creator = get_hash_creator(get_settings())
-
-
-class ShortCodeCreateError(Exception):
-    pass
-
-
-class ShortCodeConfigError(Exception):
-    pass
-
-
-class ShortCodeNotFound(Exception):
-    pass
-
-
-class ShortCodeDecodeError(Exception):
-    pass
 
 
 class ShortCodeStorage:
@@ -43,7 +28,7 @@ class ShortCodeStorage:
         if not shard_id == self.shard_id:
             raise ShortCodeNotFound()
 
-        return code
+        return row_id
 
     async def create(self, db:AsyncSession, url: str) -> str:
         """
@@ -105,13 +90,3 @@ class ShortCodeStorage:
             raise ShortCodeNotFound()
 
         return True
-
-
-    # async def add_event(self, db: AsyncSession, code_id: int) -> bool:
-    #     query = url_codes_stat_table.insert().values(
-    #         code_id=code_id,
-    #         type=
-    #         created=datetime.utcnow(),
-    #     )
-    #     insert_cursor = await self.db.execute(query)
-    #     insert_record_id = insert_cursor.inserted_primary_key[0]

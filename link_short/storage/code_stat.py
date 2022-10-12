@@ -9,9 +9,6 @@ from storage.code_storage import ShortCodeNotFound
 
 class ShortCodeStat:
 
-    def __init__(self):
-        pass
-
     async def save_event(self, db: AsyncSession, code_id: int, type: EventTypeEnum=EventTypeEnum.get) -> bool:
 
         query = url_codes_stat_table.insert().values(
@@ -19,7 +16,7 @@ class ShortCodeStat:
             type=type,
             created=datetime.utcnow(),
         )
-        insert_cursor = await self.db.execute(query)
+        insert_cursor = await db.execute(query)
         # insert_record_id = insert_cursor.inserted_primary_key[0]
 
         return False

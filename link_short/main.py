@@ -2,8 +2,7 @@ import databases
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import FastAPI, HTTPException, Depends
-from models.core import CreateUrlRequest, CreateUrlResponse, UpdateUrlRequest, UpdateUrlResponse
-
+from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest, UpdateCodeResponse, GetCodeResponse
 
 from config import get_settings
 from db.session import get_db
@@ -19,19 +18,19 @@ code_storage = ShortCodeStorage(
     salt_int=settings.CODE_SALT_INT
 )
 
-code_stat = ShortCodeStat(get_db())
+code_stat = ShortCodeStat()
 
 
 
 @app.post('/urls/')
-async def create_code(item: CreateUrlRequest, db:AsyncSession = Depends(get_db)):
+async def create_code(item: CreateCodeRequest, db:AsyncSession = Depends(get_db)):
 
     try:
         code = await code_storage.create(db, item.url)
     except ShortCodeConfigError:
         raise HTTPException(status_code=500, detail="Service config error")
 
-    return CreateUrlResponse(code=code)
+    return CreateCodeResponse(code=code)
 
 
 @app.get('/urls/{short_code}')
@@ -43,7 +42,7 @@ async def get_code(short_code: str, db: AsyncSession = Depends(get_db)):
 
     stat_saved = await code_stat.save_event(db, code_data.id)
 
-    return {"url": code_data.url}
+    return GetCodeResponse(code_data.url)
 
 
 @app.get('/urls/{short_code}/stats')
@@ -54,13 +53,13 @@ async def get_code_stat(short_code: str, db: AsyncSession = Depends(get_db)):
 
 
 @app.put('/urls/{short_code}')
-async def update_code(short_code: str, item: UpdateUrlRequest, db: AsyncSession = Depends(get_db)):
+async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncSession = Depends(get_db)):
     try:
         updated = code_storage.update(db, short_code, item.url)
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return {"updated": updated}
+    return UpdateCodeResponse(updated)
 
 
 @app.delete('/urls/{short_code}')

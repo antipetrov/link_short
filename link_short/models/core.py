@@ -1,18 +1,22 @@
 from pydantic import BaseModel, AnyHttpUrl
 
 
-class CreateUrlRequest(BaseModel):
+class CreateCodeRequest(BaseModel):
     url: AnyHttpUrl
 
 
-class CreateUrlResponse(BaseModel):
+class CreateCodeResponse(BaseModel):
     code: str
 
 
-class UpdateUrlRequest(BaseModel):
+class UpdateCodeRequest(BaseModel):
     code: str
     url: AnyHttpUrl
 
 
-class UpdateUrlResponse(BaseModel):
+class UpdateCodeResponse(BaseModel):
     updated: bool
+
+
+class GetCodeResponse(BaseModel):
+    url: AnyHttpUrl
