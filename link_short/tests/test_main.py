@@ -4,23 +4,33 @@ from httpx import AsyncClient
 import databases
 
 from config import get_settings
-from main import app, hash_creator
+from main import app
+from hash_creator import hash_creator
 settings = get_settings()
+
+@pytest.mark.asyncio
+async def test_get_code_200(client, short_code_in_db):
+    existing_code, existing_url = short_code_in_db
+    response = await client.get(f"/urls/{existing_code}")
+
+    assert response.status_code == 200
+    assert response.json()['url'] == existing_url
+
+
+@pytest.mark.asyncio
+async def test_get_code_404(client):
+    response = await client.get("/urls/abcd")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Code not found"}
 
 
 @pytest.mark.asyncio
 async def test_create_code(client):
-    # async with client as cl:
     target_url = 'http://ya.ru'
 
     response = await client.post("/urls/", json={'url': target_url})
     assert response.status_code == 200
-    data = response.json()
-    code = data['code']
-    shard_id, row_id, salt = hash_creator.decode(code)
-
-    assert shard_id == settings.CURRENT_SHARD
-    assert row_id == 1
+    code = response.json()['code']
 
     read_response = await client.get(f"/urls/{code}")
     assert read_response.status_code == 200
@@ -51,10 +61,3 @@ async def test_delete_code(client, short_code_in_db):
 
     response = await client.get(f"/urls/{existing_code}")
     assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_get_code_404(client):
-    response = await client.get("/urls/abcd")
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Code not found"}

@@ -13,7 +13,7 @@ from main import app
 from db.tables import metadata, url_codes_table
 from db.session import get_db
 from config import get_test_settings
-from main import hash_creator
+from hash_creator import hash_creator
 
 settings_test = get_test_settings()
 
