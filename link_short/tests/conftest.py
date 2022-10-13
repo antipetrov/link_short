@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, async_scoped_session, AsyncSession
 
 from main import app
-from db.tables import metadata, url_codes_table
+from db.tables import metadata, url_codes_table, url_codes_stat_table
 from db.session import get_db
 from config import get_test_settings
 from hash_creator import hash_creator
@@ -70,7 +70,7 @@ async def client(
 
 
 @pytest_asyncio.fixture(scope="module")
-async def short_code_in_db(db_session:AsyncSession) -> Tuple[str, str]:
+async def short_code_in_db(db_session:AsyncSession) -> Tuple[str, str, int]:
     url = 'http://test.test'
     query = url_codes_table.insert().values(
         url=url,
@@ -79,7 +79,29 @@ async def short_code_in_db(db_session:AsyncSession) -> Tuple[str, str]:
 
     insert_cursor = await db_session.execute(query)
     insert_record_id = insert_cursor.inserted_primary_key[0]
+
+    # query_stat = url_codes_stat_table.insert().values(
+    #     url_code_id=insert_record_id,
+    #     event_time=datetime.datetime.utcnow(),
+    # )
+    #
+    # insert_stat_cursor = await db_session.execute(query_stat)
+
+
     code = hash_creator.encode(settings_test.CURRENT_SHARD, insert_record_id, settings_test.CODE_SALT_INT)
 
-    return code, url
+    return code, url, insert_record_id
 
+
+@pytest_asyncio.fixture(scope="module")
+async def short_code_stat_in_db(db_session:AsyncSession, short_code_in_db: Tuple) -> int:
+
+    code, url, code_id = short_code_in_db
+    query_stat = url_codes_stat_table.insert().values(
+        url_code_id=code_id,
+        event_time=datetime.datetime.utcnow(),
+    )
+
+    insert_stat_cursor = await db_session.execute(query_stat)
+
+    return insert_stat_cursor.inserted_primary_key[0]

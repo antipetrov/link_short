@@ -2,7 +2,8 @@ import databases
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import FastAPI, HTTPException, Depends
-from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest, UpdateCodeResponse, GetCodeResponse
+from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest, UpdateCodeResponse, GetCodeResponse,\
+                        GetCodeStatResponse, DeleteCodeResponse
 
 from config import get_settings
 from db.session import get_db
@@ -42,14 +43,14 @@ async def get_code(short_code: str, db: AsyncSession = Depends(get_db)):
 
     stat_saved = await code_stat.save_event(db, code_data.id)
 
-    return GetCodeResponse(code_data.url)
+    return GetCodeResponse(url=code_data.url)
 
 
 @app.get('/urls/{short_code}/stats')
 async def get_code_stat(short_code: str, db: AsyncSession = Depends(get_db)):
     code_id = code_storage.get_id_from_code(short_code)
     count = await code_stat.count_events_24h(db, code_id)
-    return {'visit_count': count}
+    return GetCodeStatResponse(count=count)
 
 
 @app.put('/urls/{short_code}')
@@ -59,7 +60,7 @@ async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncSession
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return UpdateCodeResponse(updated)
+    return UpdateCodeResponse(updated=updated)
 
 
 @app.delete('/urls/{short_code}')
@@ -69,4 +70,4 @@ async def delete_code(short_code: str, db: AsyncSession = Depends(get_db)):
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return {"status": deleted}
+    return DeleteCodeResponse(deleted=deleted)

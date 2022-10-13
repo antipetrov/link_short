@@ -10,7 +10,6 @@ class CreateCodeResponse(BaseModel):
 
 
 class UpdateCodeRequest(BaseModel):
-    code: str
     url: AnyHttpUrl
 
 
@@ -18,5 +17,12 @@ class UpdateCodeResponse(BaseModel):
     updated: bool
 
 
+class DeleteCodeResponse(BaseModel):
+    deleted: bool
+
+
 class GetCodeResponse(BaseModel):
     url: AnyHttpUrl
+
+class GetCodeStatResponse(BaseModel):
+    count: int

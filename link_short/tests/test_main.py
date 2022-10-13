@@ -10,11 +10,19 @@ settings = get_settings()
 
 @pytest.mark.asyncio
 async def test_get_code_200(client, short_code_in_db):
-    existing_code, existing_url = short_code_in_db
+    existing_code, existing_url, code_id = short_code_in_db
     response = await client.get(f"/urls/{existing_code}")
 
     assert response.status_code == 200
     assert response.json()['url'] == existing_url
+
+@pytest.mark.asyncio
+async def test_get_code_stats(client, short_code_in_db, short_code_stat_in_db):
+    existing_code, existing_url, code_id = short_code_in_db
+    response = await client.get(f"/urls/{existing_code}/stats")
+
+    assert response.status_code == 200
+    assert response.json()['count'] == 1
 
 
 @pytest.mark.asyncio
@@ -39,7 +47,7 @@ async def test_create_code(client):
 
 @pytest.mark.asyncio
 async def test_update_code(client, short_code_in_db):
-    existing_code, existing_url = short_code_in_db
+    existing_code, existing_url, code_id = short_code_in_db
     new_url = 'https://test2.com'
     response = await client.put(f"/urls/{existing_code}", json={'url': new_url})
     assert response.status_code == 200
@@ -51,7 +59,7 @@ async def test_update_code(client, short_code_in_db):
 
 @pytest.mark.asyncio
 async def test_delete_code(client, short_code_in_db):
-    existing_code, existing_url = short_code_in_db
+    existing_code, existing_url, code_id = short_code_in_db
     response = await client.get(f"/urls/{existing_code}")
     assert response.status_code == 200
 
