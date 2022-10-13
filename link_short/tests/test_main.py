@@ -51,7 +51,7 @@ async def test_update_code(client, short_code_in_db):
     new_url = 'https://test2.com'
     response = await client.put(f"/urls/{existing_code}", json={'url': new_url})
     assert response.status_code == 200
-    assert response.json()['status'] == 'ok'
+    assert response.json()['updated'] == True
 
     response = await client.get(f"/urls/{existing_code}")
     response.json()['url'] == new_url
@@ -65,7 +65,7 @@ async def test_delete_code(client, short_code_in_db):
 
     response = await client.delete(f"/urls/{existing_code}")
     assert response.status_code == 200
-    assert response.json() == {"status": "deleted"}
+    assert response.json()['deleted'] == True
 
     response = await client.get(f"/urls/{existing_code}")
     assert response.status_code == 404

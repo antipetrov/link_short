@@ -56,7 +56,7 @@ async def get_code_stat(short_code: str, db: AsyncSession = Depends(get_db)):
 @app.put('/urls/{short_code}')
 async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncSession = Depends(get_db)):
     try:
-        updated = code_storage.update(db, short_code, item.url)
+        updated = await code_storage.update(db, short_code, item.url)
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
@@ -66,7 +66,7 @@ async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncSession
 @app.delete('/urls/{short_code}')
 async def delete_code(short_code: str, db: AsyncSession = Depends(get_db)):
     try:
-        deleted = code_storage.update(db, short_code)
+        deleted = await code_storage.delete(db, short_code)
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
