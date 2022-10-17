@@ -6,20 +6,15 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, async_scoped_session, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, AsyncConnection
 
 from main import app
 from db.tables import metadata, url_codes_table, url_codes_stat_table
-from db.session import get_db
+from db.engine import get_db
 from config import get_test_settings
 from hash_creator import hash_creator
 
 settings_test = get_test_settings()
-
-engine = create_async_engine(settings_test.DATABASE_URL)
-async_session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
-AsyncSessionLocal = async_scoped_session(async_session_factory, scopefunc=asyncio.current_task)
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +25,8 @@ def event_loop():
 
 
 @pytest_asyncio.fixture(scope="module")
-async def db_connection() -> Generator:
+async def db_connection() -> AsyncConnection:
+    engine = create_async_engine(settings_test.DATABASE_URL)
     async with engine.begin() as conn:
         await conn.run_sync(metadata.drop_all)
         await conn.run_sync(metadata.create_all)
@@ -41,26 +37,20 @@ async def db_connection() -> Generator:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def db_session(db_connection: Generator) -> Generator[AsyncSession, Any, None]:
+async def db_test_engine(db_connection: AsyncConnection) -> Generator[AsyncEngine, Any, None]:
     transaction = await db_connection.begin()
-    session = AsyncSessionLocal(bind=db_connection)
-    yield session  # use the session in tests.
-    transaction.rollback()
-    session.close()
+    yield db_connection  # use connection in tests
+    await transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="module")
 async def client(
-    db_session: AsyncSession
+    db_test_engine: AsyncSession
 ) -> Generator[AsyncClient, Any, None]:
-    """
-    Create a new FastAPI TestClient that uses the `db_session` fixture to override
-    the `get_db` dependency that is injected into routes.
-    """
 
     async def _get_test_db():
         try:
-            yield db_session
+            yield db_test_engine
         finally:
             pass
 
@@ -69,32 +59,24 @@ async def client(
         yield cl
 
 
-@pytest_asyncio.fixture(scope="module")
-async def short_code_in_db(db_session:AsyncSession) -> Tuple[str, str, int]:
+@pytest_asyncio.fixture(scope="function")
+async def short_code_in_db(db_test_engine: AsyncEngine) -> Tuple[str, str, int]:
     url = 'http://test.test'
     query = url_codes_table.insert().values(
         url=url,
         created=datetime.datetime.utcnow(),
     )
 
-    insert_cursor = await db_session.execute(query)
+    insert_cursor = await db_test_engine.execute(query)
     insert_record_id = insert_cursor.inserted_primary_key[0]
-
-    # query_stat = url_codes_stat_table.insert().values(
-    #     url_code_id=insert_record_id,
-    #     event_time=datetime.datetime.utcnow(),
-    # )
-    #
-    # insert_stat_cursor = await db_session.execute(query_stat)
-
 
     code = hash_creator.encode(settings_test.CURRENT_SHARD, insert_record_id, settings_test.CODE_SALT_INT)
 
     return code, url, insert_record_id
 
 
-@pytest_asyncio.fixture(scope="module")
-async def short_code_stat_in_db(db_session:AsyncSession, short_code_in_db: Tuple) -> int:
+@pytest_asyncio.fixture(scope="function")
+async def short_code_stat_in_db(db_test_engine: AsyncEngine, short_code_in_db: Tuple) -> int:
 
     code, url, code_id = short_code_in_db
     query_stat = url_codes_stat_table.insert().values(
@@ -102,6 +84,20 @@ async def short_code_stat_in_db(db_session:AsyncSession, short_code_in_db: Tuple
         event_time=datetime.datetime.utcnow(),
     )
 
-    insert_stat_cursor = await db_session.execute(query_stat)
+    insert_stat_cursor = await db_test_engine.execute(query_stat)
+
+    return insert_stat_cursor.inserted_primary_key[0]
+
+
+@pytest_asyncio.fixture(scope="function")
+async def short_code_stat_in_db_yesterday(db_test_engine: AsyncEngine, short_code_in_db: Tuple) -> int:
+
+    code, url, code_id = short_code_in_db
+    query_stat = url_codes_stat_table.insert().values(
+        url_code_id=code_id,
+        event_time=datetime.datetime.utcnow() - datetime.timedelta(hours=25),
+    )
+
+    insert_stat_cursor = await db_test_engine.execute(query_stat)
 
     return insert_stat_cursor.inserted_primary_key[0]

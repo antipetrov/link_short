@@ -1,12 +1,12 @@
 import databases
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection
 
 from fastapi import FastAPI, HTTPException, Depends
 from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest, UpdateCodeResponse, GetCodeResponse,\
                         GetCodeStatResponse, DeleteCodeResponse
 
 from config import get_settings
-from db.session import get_db
+from db.engine import get_db
 from storage.code_stat import ShortCodeStat
 from storage.code_storage import ShortCodeStorage, ShortCodeNotFound, ShortCodeConfigError, ShortCodeDecodeError
 
@@ -22,9 +22,8 @@ code_storage = ShortCodeStorage(
 code_stat = ShortCodeStat()
 
 
-
 @app.post('/urls/')
-async def create_code(item: CreateCodeRequest, db:AsyncSession = Depends(get_db)):
+async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get_db)):
 
     try:
         code = await code_storage.create(db, item.url)
@@ -35,7 +34,7 @@ async def create_code(item: CreateCodeRequest, db:AsyncSession = Depends(get_db)
 
 
 @app.get('/urls/{short_code}')
-async def get_code(short_code: str, db: AsyncSession = Depends(get_db)):
+async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)):
     try:
         code_data = await code_storage.get(db, short_code)
     except (ShortCodeNotFound, ShortCodeDecodeError):
@@ -47,27 +46,27 @@ async def get_code(short_code: str, db: AsyncSession = Depends(get_db)):
 
 
 @app.get('/urls/{short_code}/stats')
-async def get_code_stat(short_code: str, db: AsyncSession = Depends(get_db)):
+async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
     code_id = code_storage.get_id_from_code(short_code)
     count = await code_stat.count_events_24h(db, code_id)
     return GetCodeStatResponse(count=count)
 
 
 @app.put('/urls/{short_code}')
-async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncSession = Depends(get_db)):
+async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnection = Depends(get_db)):
     try:
-        updated = await code_storage.update(db, short_code, item.url)
+        update_count = await code_storage.update(db, short_code, item.url)
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return UpdateCodeResponse(updated=updated)
+    return UpdateCodeResponse(updated=update_count > 0)
 
 
 @app.delete('/urls/{short_code}')
-async def delete_code(short_code: str, db: AsyncSession = Depends(get_db)):
+async def delete_code(short_code: str, db: AsyncConnection = Depends(get_db)):
     try:
-        deleted = await code_storage.delete(db, short_code)
+        delete_count = await code_storage.delete(db, short_code)
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return DeleteCodeResponse(deleted=deleted)
+    return DeleteCodeResponse(deleted=delete_count > 0)

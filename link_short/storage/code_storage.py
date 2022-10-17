@@ -1,7 +1,7 @@
 import datetime
 from typing import Tuple
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection
 
 from hash_creator import get_hash_creator
 from config import get_settings
@@ -30,7 +30,7 @@ class ShortCodeStorage:
 
         return row_id
 
-    async def create(self, db:AsyncSession, url: str) -> str:
+    async def create(self, db:AsyncConnection, url: str) -> str:
         """
         Here `create()` does not actually store code in DB, it only stores url.
         After new `url` is saved in db, it encodes `shard_id(int)+primary_key(int)+salt(int)` into hashid-code
@@ -55,7 +55,7 @@ class ShortCodeStorage:
 
         return code
 
-    async def get(self, db: AsyncSession, short_code: str) -> CodeStorageGet:
+    async def get(self, db: AsyncConnection, short_code: str) -> CodeStorageGet:
         """
         Decode `shard_id+primary_key` from code
         :param short_code:
@@ -71,22 +71,18 @@ class ShortCodeStorage:
 
         return CodeStorageGet(**row)
 
-    async def update(self, db: AsyncSession,  short_code: str, url: str) -> bool:
+    async def update(self, db: AsyncConnection,  short_code: str, url: str) -> int:
 
         row_id = self.get_id_from_code(short_code)
 
         update_query = url_codes_table.update().where(url_codes_table.c.id == row_id).values(url=url)
         rows_cursor = await db.execute(update_query)
+        return rows_cursor.rowcount
 
-        return rows_cursor.rowcount > 0
-
-    async def delete(self, db: AsyncSession,  short_code: str) -> bool:
+    async def delete(self, db: AsyncConnection,  short_code: str) -> int:
 
         row_id = self.get_id_from_code(short_code)
 
-        update_query = url_codes_table.delete().where(url_codes_table.c.id == row_id)
-        rows_cursor = await db.execute(update_query)
-        if rows_cursor.rowcount == 0:
-            raise ShortCodeNotFound()
-
-        return True
+        delete_query = url_codes_table.delete().where(url_codes_table.c.id == row_id)
+        rows_cursor = await db.execute(delete_query)
+        return rows_cursor.rowcount

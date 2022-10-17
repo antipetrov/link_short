@@ -1,12 +1,5 @@
 import pytest
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
-import databases
 
-from config import get_settings
-from main import app
-from hash_creator import hash_creator
-settings = get_settings()
 
 @pytest.mark.asyncio
 async def test_get_code_200(client, short_code_in_db):
@@ -16,12 +9,32 @@ async def test_get_code_200(client, short_code_in_db):
     assert response.status_code == 200
     assert response.json()['url'] == existing_url
 
+
 @pytest.mark.asyncio
 async def test_get_code_stats(client, short_code_in_db, short_code_stat_in_db):
     existing_code, existing_url, code_id = short_code_in_db
     response = await client.get(f"/urls/{existing_code}/stats")
 
     assert response.status_code == 200
+    assert response.json()['count'] == 1
+
+    await client.get(f"/urls/{existing_code}")
+
+    response = await client.get(f"/urls/{existing_code}/stats")
+    assert response.json()['count'] == 2
+
+
+@pytest.mark.asyncio
+async def test_get_code_stats_yesterday(client, short_code_in_db, short_code_stat_in_db_yesterday):
+    existing_code, existing_url, code_id = short_code_in_db
+    response = await client.get(f"/urls/{existing_code}/stats")
+
+    assert response.status_code == 200
+    assert response.json()['count'] == 0
+
+    await client.get(f"/urls/{existing_code}")
+
+    response = await client.get(f"/urls/{existing_code}/stats")
     assert response.json()['count'] == 1
 
 
