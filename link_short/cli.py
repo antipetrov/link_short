@@ -19,10 +19,6 @@ async def create_engine():
     return create_async_engine(get_settings().DATABASE_URL)
 
 
-def create_engine_sync():
-    return create_async_engine(get_settings().DATABASE_URL)
-
-
 @cli.command()
 def create_db():
     engine = sqlalchemy.create_engine(
@@ -63,7 +59,7 @@ async def async_stat_cleanup():
     from storage.code_stat import ShortCodeStat
     engine = await create_engine()
     async with engine.connect() as connection:
-        deleted_count = await ShortCodeStat().cleanup(db=connection, without_actual=False)
+        deleted_count = await ShortCodeStat().cleanup(db=connection, without_actual=True)
     sys.stdout.write(f"Stat cleanup completed. Stat records delete-result: {deleted_count}")
 
 

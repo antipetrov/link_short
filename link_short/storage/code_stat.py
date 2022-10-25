@@ -106,6 +106,7 @@ class ShortCodeStat:
             delete_query = delete_query.where(
                 url_codes_stat_table.c.event_time < from_time
             )
-
+        await db.begin()
         delete_cursor = await db.execute(delete_query)
+        await db.commit()
         return delete_cursor.rowcount

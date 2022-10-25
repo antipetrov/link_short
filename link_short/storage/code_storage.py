@@ -20,8 +20,7 @@ class ShortCodeStorage:
 
     async def create(self, db:AsyncConnection, url: str) -> int:
         """
-        Here `create()` does not actually store code in DB, it only stores url.
-        After new `url` is saved in db, it encodes `shard_id(int)+primary_key(int)+salt(int)` into hashid-code
+        Here `create()` does not actually store short code in DB, it only stores url itself.
         :param url:
         :return:
         """
@@ -46,7 +45,6 @@ class ShortCodeStorage:
         :param short_code:
         :return:
         """
-        # row_id = self.get_id_from_code(short_code)
 
         query = url_codes_table.select().where(url_codes_table.c.id == url_id)
         rows_cursor = await db.execute(query)
@@ -57,8 +55,6 @@ class ShortCodeStorage:
         return CodeStorageGet(**row)
 
     async def update(self, db: AsyncConnection,  url_id: int, url: str) -> int:
-
-        # row_id = self.get_id_from_code(short_code)
 
         update_query = url_codes_table.update().where(url_codes_table.c.id == url_id).values(url=url)
         rows_cursor = await db.execute(update_query)
