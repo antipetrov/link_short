@@ -21,7 +21,6 @@ code_storage = ShortCodeStorage(
 
 code_stat = ShortCodeStat()
 
-
 coder = UrlCoder(
     shard_id=settings.CURRENT_SHARD,
     salt=settings.CODE_SALT,
@@ -64,7 +63,7 @@ async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
     except UrlCoderDecodeError:
         raise HTTPException(status_code=404, detail="Code not found")
 
-    count = await code_stat.count_events_actual(db, code_data.id)
+    count = await code_stat.actual_events_count(db, code_data.id, settings.STAT_ACTUAL_HOURS)
     return GetCodeStatResponse(count=count)
 
 

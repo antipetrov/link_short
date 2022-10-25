@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     CODE_SALT = "abc"
     CURRENT_SHARD: int = 1
 
+    STAT_ACTUAL_HOURS = 24
+
     #working db
     DATABASE_URL: str = "postgresql+asyncpg://postgres:testpass@127.0.0.1:5432/url_db"
     # this is for sync connection to call create_tables()

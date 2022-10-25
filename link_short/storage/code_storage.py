@@ -12,23 +12,11 @@ from storage.errors import ShortCodeStorageCreateError, ShortCodeDecodeError, Sh
                            ShortCodeStorageDeleteError
 
 
-
 class ShortCodeStorage:
 
     def __init__(self, shard_id: int):
         self.shard_id = shard_id
         # self.salt_int = salt_int
-
-    def get_id_from_code(self, code):
-        try:
-            shard_id, row_id, salt = hash_creator.decode(code)
-        except ValueError as e:
-            raise ShortCodeDecodeError()
-
-        if not shard_id == self.shard_id:
-            raise ShortCodeNotFound()
-
-        return row_id
 
     async def create(self, db:AsyncConnection, url: str) -> int:
         """
@@ -48,12 +36,7 @@ class ShortCodeStorage:
             except SQLAlchemyError:
                 await db.rollback()
                 raise ShortCodeStorageCreateError()
-        #
-        # try:
-        #     code = hash_creator.encode(self.shard_id, insert_record_id, self.salt_int)
-        # except NameError as e:
-        #     # CURRENT SHARD NOT SET
-        #     raise ShortCodeConfigError()
+            await db.commit()
 
         return insert_record_id
 

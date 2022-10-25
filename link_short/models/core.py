@@ -24,5 +24,6 @@ class DeleteCodeResponse(BaseModel):
 class GetCodeResponse(BaseModel):
     url: AnyHttpUrl
 
+
 class GetCodeStatResponse(BaseModel):
     count: int

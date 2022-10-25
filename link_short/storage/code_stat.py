@@ -10,6 +10,9 @@ from storage.code_storage import ShortCodeNotFound
 
 
 class ShortCodeStat:
+    """
+    View stat storage. Implemented in a form of postgres table.
+    """
 
     def __init__(self, actual_hours: int = 24):
         self.actual_hours: int = actual_hours
@@ -32,12 +35,15 @@ class ShortCodeStat:
                 insert_cursor = await db.execute(query)
                 insert_record_id = insert_cursor.inserted_primary_key[0]
             except SQLAlchemyError:
+                await db.rollback()
                 return None
+            await db.commit()
+
         return insert_record_id
 
     async def list_events(self, db: AsyncConnection, code_id: int) -> List:
         """
-        Get events from table
+        Get all events from table. Mostly for tests & debugging. Dangerous in production.
         :param db:
         :param code_id:
         :return:
@@ -53,14 +59,15 @@ class ShortCodeStat:
 
         return rows
 
-    async def count_events_actual(self, db: AsyncConnection, code_id: int) -> int:
+    async def actual_events_count(self, db: AsyncConnection, code_id: int, actual_hours: int = 24) -> int:
         """
         returns event-count in `actual_hours` interval
-        :param db:
+        :param db: async db connection
         :param code_id:
+        :param actual_hours: count events from (now - actual_hours; now) interval
         :return:
         """
-        from_time = datetime.utcnow() - timedelta(hours=self.actual_hours)
+        from_time = datetime.utcnow() - timedelta(hours=actual_hours)
         query = select([func.count()]).select_from(url_codes_stat_table).where(
             url_codes_stat_table.c.url_code_id == code_id,
             url_codes_stat_table.c.event_time > from_time
@@ -87,7 +94,7 @@ class ShortCodeStat:
 
     async def cleanup(self, db: AsyncConnection, without_actual: bool = True) -> int:
         """
-        Mass delete events from db
+        Mass delete events from db.
         :param db:
         :param without_actual: delete everything older than `self.actual_hours`
         :return:
