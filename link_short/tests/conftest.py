@@ -8,6 +8,7 @@ from httpx import AsyncClient
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, AsyncConnection
 
+from coder.urlcoder import UrlCoder
 from main import app
 from db.tables import metadata, url_codes_table, url_codes_stat_table
 from db.engine import get_db
@@ -58,9 +59,20 @@ async def client(
     async with AsyncClient(app=app, base_url='http://127.0.0.1:8000') as cl:
         yield cl
 
+@pytest_asyncio.fixture(scope="module")
+async def coder() -> UrlCoder:
+
+    coder = UrlCoder(
+        shard_id=settings_test.CURRENT_SHARD,
+        salt=settings_test.CODE_SALT,
+        alphabet=settings_test.CODE_ALPHABET,
+        min_length=settings_test.CODE_MIN_LENGTH,
+    )
+
+    return coder
 
 @pytest_asyncio.fixture(scope="function")
-async def short_code_in_db(db_test_engine: AsyncEngine) -> Tuple[str, str, int]:
+async def short_code_in_db(db_test_engine: AsyncEngine, coder: UrlCoder) -> Tuple[str, str, int]:
     url = 'http://test.test'
     query = url_codes_table.insert().values(
         url=url,
@@ -70,7 +82,7 @@ async def short_code_in_db(db_test_engine: AsyncEngine) -> Tuple[str, str, int]:
     insert_cursor = await db_test_engine.execute(query)
     insert_record_id = insert_cursor.inserted_primary_key[0]
 
-    code = hash_creator.encode(settings_test.CURRENT_SHARD, insert_record_id, settings_test.CODE_SALT_INT)
+    code = coder.encode(insert_record_id)
 
     return code, url, insert_record_id
 

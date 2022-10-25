@@ -2,12 +2,10 @@ import asyncio
 import sys
 
 import typer
-from asyncio import get_event_loop
 import sqlalchemy
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from config import get_settings, get_test_settings
-from db.engine import get_db_sync, get_test_db_sync
 from db.tables import metadata
 
 
@@ -25,7 +23,6 @@ def create_engine_sync():
     return create_async_engine(get_settings().DATABASE_URL)
 
 
-
 @cli.command()
 def create_db():
     engine = sqlalchemy.create_engine(
@@ -33,8 +30,6 @@ def create_db():
     )
     metadata.create_all(engine)
     sys.stdout.write(f"DB creation completed.")
-
-
 
 
 @cli.command()

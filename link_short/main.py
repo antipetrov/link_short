@@ -1,61 +1,79 @@
-import databases
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from fastapi import FastAPI, HTTPException, Depends
+
+from coder.urlcoder import UrlCoder, UrlCoderData, UrlCoderDecodeError
 from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest, UpdateCodeResponse, GetCodeResponse,\
                         GetCodeStatResponse, DeleteCodeResponse
 
 from config import get_settings
 from db.engine import get_db
 from storage.code_stat import ShortCodeStat
-from storage.code_storage import ShortCodeStorage, ShortCodeNotFound, ShortCodeConfigError, ShortCodeDecodeError
-
+from storage.code_storage import ShortCodeStorage, ShortCodeNotFound, ShortCodeDecodeError
+from storage.errors import ShortCodeStorageError, ShortCodeStorageConfigError
 
 app = FastAPI()
 settings = get_settings()
 
 code_storage = ShortCodeStorage(
-    shard_id=settings.CURRENT_SHARD,
-    salt_int=settings.CODE_SALT_INT
+    shard_id=settings.CURRENT_SHARD
 )
 
 code_stat = ShortCodeStat()
+
+
+coder = UrlCoder(
+    shard_id=settings.CURRENT_SHARD,
+    salt=settings.CODE_SALT,
+    alphabet=settings.CODE_ALPHABET,
+    min_length=settings.CODE_MIN_LENGTH
+)
 
 
 @app.post('/urls/')
 async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get_db)):
 
     try:
-        code = await code_storage.create(db, item.url)
-    except ShortCodeConfigError:
+        url_id = await code_storage.create(db, item.url)
+    except ShortCodeStorageConfigError:
         raise HTTPException(status_code=500, detail="Service config error")
+
+    code = coder.encode(url_id)
 
     return CreateCodeResponse(code=code)
 
 
 @app.get('/urls/{short_code}')
 async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)):
+
     try:
-        code_data = await code_storage.get(db, short_code)
-    except (ShortCodeNotFound, ShortCodeDecodeError):
+        code_data: UrlCoderData = coder.decode(short_code)
+        url_data = await code_storage.get(db, code_data.id)
+    except (ShortCodeNotFound, UrlCoderDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    stat_saved = await code_stat.save_event(db, code_data.id)
+    await code_stat.save_event(db, url_data.id)
 
-    return GetCodeResponse(url=code_data.url)
+    return GetCodeResponse(url=url_data.url)
 
 
 @app.get('/urls/{short_code}/stats')
 async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
-    code_id = code_storage.get_id_from_code(short_code)
-    count = await code_stat.count_events_24h(db, code_id)
+    try:
+        code_data: UrlCoderData = coder.decode(short_code)
+    except UrlCoderDecodeError:
+        raise HTTPException(status_code=404, detail="Code not found")
+
+    count = await code_stat.count_events_actual(db, code_data.id)
     return GetCodeStatResponse(count=count)
 
 
 @app.put('/urls/{short_code}')
 async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnection = Depends(get_db)):
+
     try:
-        update_count = await code_storage.update(db, short_code, item.url)
+        code_data: UrlCoderData = coder.decode(short_code)
+        update_count = await code_storage.update(db, code_data.id, item.url)
     except (ShortCodeNotFound, ShortCodeDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
@@ -64,9 +82,12 @@ async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnect
 
 @app.delete('/urls/{short_code}')
 async def delete_code(short_code: str, db: AsyncConnection = Depends(get_db)):
+
     try:
-        delete_count = await code_storage.delete(db, short_code)
-    except (ShortCodeNotFound, ShortCodeDecodeError):
+        code_data: UrlCoderData = coder.decode(short_code)
+        delete_count = await code_storage.delete(db, code_data.id)
+        deleted_stat_count = await code_stat.delete(db, code_data.id)
+    except ShortCodeStorageError:
         raise HTTPException(status_code=404, detail="Code not found")
 
     return DeleteCodeResponse(deleted=delete_count > 0)

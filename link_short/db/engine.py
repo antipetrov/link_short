@@ -10,13 +10,16 @@ from config import get_settings, get_test_settings
 
 settings = get_settings()
 
-engine = create_async_engine(settings.DATABASE_URL)
+engine = create_async_engine(settings.DATABASE_URL,)
 engine_sync = create_engine(settings.DATABASE_SYNC_URL)
 
 
 async def get_db() -> AsyncConnection:
     async with engine.connect() as connection:
-        yield connection
+        try:
+            yield connection
+        finally:
+            await connection.close()
 
 
 def get_db_sync() -> Connection:

@@ -4,9 +4,9 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
 
     CODE_SEED: str = 'ABCDEF'
-    CODE_MIN_LENGTH: int = 4
+    CODE_MIN_LENGTH: int = 7
     CODE_ALPHABET: str = '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-    CODE_SALT_INT = 156
+    CODE_SALT = "abc"
     CURRENT_SHARD: int = 1
 
     #working db

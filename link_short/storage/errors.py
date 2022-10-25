@@ -1,14 +1,20 @@
 
+class ShortCodeStorageError(Exception):
+    pass
 
-class ShortCodeCreateError(Exception):
+class ShortCodeStorageCreateError(ShortCodeStorageError):
     pass
 
 
-class ShortCodeConfigError(Exception):
+class ShortCodeStorageConfigError(ShortCodeStorageError):
     pass
 
 
-class ShortCodeNotFound(Exception):
+class ShortCodeStorageDeleteError(ShortCodeStorageError):
+    pass
+
+
+class ShortCodeNotFound(ShortCodeStorageError):
     pass
 
 
