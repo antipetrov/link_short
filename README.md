@@ -11,6 +11,8 @@ When a user comes with the short code from before, it is decoded back info prima
 1. To make this all extendable, `shard_id` is baked into every short code. This should allow several backends with differtent shard_id (shard_id is set in config for each backend) and separate databases to store more codes and handle more traffic. This would require some additions to routing logic - short codes from another shard should be redirected to other backend. Probably this would require some separate routing backends in front of this one on the same codebase.
 2. Stat-events need to be cleaned-up - for now itcan be done with `cli.py stat-cleanup` with old-fashioned crontab. There may be a more elegant way to do it. 
 3. Changing short-code-generation parameters in config is dangerous - with existing db old codes will not be decoded. Might be a good idea to store short codes in database for manual recovery in disaster.
+4. Logging is required.
+5. Tests are too basic now. Need more unittests.
 
 
 ## Requirements
