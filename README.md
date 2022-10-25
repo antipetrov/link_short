@@ -7,14 +7,6 @@ Basic idea: store plain URL from users into simple Postgres Dataabse. After savi
 
 When a user comes with the short code from before, it is decoded back info primary key and the URL is selected from DB using this primary key. 
 
-## To improve
-1. To make this all extendable, `shard_id` is baked into every short code. This should allow several backends with differtent shard_id (shard_id is set in config for each backend) and separate databases to store more codes and handle more traffic. This would require some additions to routing logic - short codes from another shard should be redirected to other backend. Probably this would require some separate routing backends in front of this one on the same codebase.
-2. Stat-events need to be cleaned-up - for now itcan be done with `cli.py stat-cleanup` with old-fashioned crontab. There may be a more elegant way to do it. 
-3. Changing short-code-generation parameters in config is dangerous - with existing db old codes will not be decoded. Might be a good idea to store short codes in database for manual recovery in disaster.
-4. Logging is required.
-5. Tests are too basic now. Need more unittests.
-
-
 ## Requirements
 Tested with `Python 3.9.7` &amp; `Postgres 13`
 
@@ -40,3 +32,12 @@ pytest
 
 ## Maintenance 
 1. To clean old stat events use `python cli.py stat-cleanup`
+
+
+## To improve
+1. To make this all extendable, `shard_id` is baked into every short code. This should allow several backends with differtent shard_id (shard_id is set in config for each backend) and separate databases to store more codes and handle more traffic. This would require some additions to routing logic - short codes from another shard should be redirected to other backend. Probably this would require some separate routing backends in front of this one on the same codebase.
+2. Stat-events need to be cleaned-up - for now itcan be done with `cli.py stat-cleanup` with old-fashioned crontab. There may be a more elegant way to do it. 
+3. Changing short-code-generation parameters in config is dangerous - with existing db old codes will not be decoded. Might be a good idea to store short codes in database for manual recovery in disaster.
+4. Logging is required.
+5. Tests are too basic now. Need more unittests.
+
