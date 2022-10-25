@@ -15,10 +15,11 @@ Tested with `Python 3.9.7` &amp; `Postgres 13`
 ## Installation
 1. Install dependencies `pip install -r requirements.txt`
 2. Run `docker-compose up -d` for local postges
-3. Create database tables 
-
+3. Create database tables `python cli.py create-db`
+4. Create test database tables `python cli.py create-test-db` (optional, to run tests)
 ## Run
 
 
 
 ## Tests
+1. run tests `pytest`
