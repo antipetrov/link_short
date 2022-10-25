@@ -4,7 +4,6 @@ from typing import Tuple
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection
 
-from hash_creator import get_hash_creator
 from config import get_settings
 
 from db.tables import url_codes_table
@@ -12,7 +11,6 @@ from storage.models import CodeStorageGet
 from storage.errors import ShortCodeStorageCreateError, ShortCodeDecodeError, ShortCodeNotFound, ShortCodeStorageConfigError,\
                            ShortCodeStorageDeleteError
 
-hash_creator = get_hash_creator(get_settings())
 
 
 class ShortCodeStorage:

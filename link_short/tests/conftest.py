@@ -13,7 +13,6 @@ from main import app
 from db.tables import metadata, url_codes_table, url_codes_stat_table
 from db.engine import get_db
 from config import get_test_settings
-from hash_creator import hash_creator
 
 settings_test = get_test_settings()
 
