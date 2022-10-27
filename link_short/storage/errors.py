@@ -21,3 +21,6 @@ class ShortCodeNotFound(ShortCodeStorageError):
 class ShortCodeDecodeError(Exception):
     pass
 
+class ShortCodeStatSaveError(Exception):
+    pass
+

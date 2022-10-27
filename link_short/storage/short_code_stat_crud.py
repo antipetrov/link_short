@@ -6,10 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection
 
 from db.tables import url_codes_stat_table, EventTypeEnum
-from storage.code_storage import ShortCodeNotFound
+from storage.short_code_crud import ShortCodeNotFound
+from storage.errors import ShortCodeStatSaveError
 
 
-class ShortCodeStat:
+class ShortCodeStatCRUD:
     """
     View stat storage. Implemented in a form of postgres table.
     """
@@ -30,14 +31,11 @@ class ShortCodeStat:
             event_time=datetime.utcnow(),
         )
 
-        async with db.begin_nested():  # here begin_nested acts like begin if no outer transacion started
-            try:
-                insert_cursor = await db.execute(query)
-                insert_record_id = insert_cursor.inserted_primary_key[0]
-            except SQLAlchemyError:
-                await db.rollback()
-                return None
-            await db.commit()
+        try:
+            insert_cursor = await db.execute(query)
+            insert_record_id = insert_cursor.inserted_primary_key[0]
+        except SQLAlchemyError:
+            raise ShortCodeStatSaveError()
 
         return insert_record_id
 
@@ -106,7 +104,6 @@ class ShortCodeStat:
             delete_query = delete_query.where(
                 url_codes_stat_table.c.event_time < from_time
             )
-        await db.begin()
+
         delete_cursor = await db.execute(delete_query)
-        await db.commit()
         return delete_cursor.rowcount

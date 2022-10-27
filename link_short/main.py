@@ -8,15 +8,15 @@ from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest
 
 from config import get_settings
 from db.engine import get_db
-from storage.code_stat import ShortCodeStat
-from storage.code_storage import ShortCodeStorage, ShortCodeNotFound, ShortCodeDecodeError
+from storage.short_code_stat_crud import ShortCodeStatCRUD
+from storage.short_code_crud import ShortCodeCRUD, ShortCodeNotFound, ShortCodeDecodeError
 from storage.errors import ShortCodeStorageError, ShortCodeStorageConfigError
 
 app = FastAPI()
 settings = get_settings()
 
-code_storage = ShortCodeStorage()
-code_stat = ShortCodeStat()
+code_storage = ShortCodeCRUD()
+code_stat = ShortCodeStatCRUD()
 
 coder = UrlCoder(
     shard_id=settings.CURRENT_SHARD,

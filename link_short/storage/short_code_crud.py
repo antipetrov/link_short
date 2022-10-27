@@ -8,16 +8,13 @@ from config import get_settings
 
 from db.tables import url_codes_table
 from storage.models import CodeStorageGet
-from storage.errors import ShortCodeStorageCreateError, ShortCodeDecodeError, ShortCodeNotFound, ShortCodeStorageConfigError,\
+from storage.errors import ShortCodeStorageCreateError, ShortCodeNotFound, ShortCodeStorageConfigError,\
                            ShortCodeStorageDeleteError
 
 
-class ShortCodeStorage:
+class ShortCodeCRUD:
 
-    def __init__(self,):
-        pass
-
-    async def create(self, db:AsyncConnection, url: str) -> int:
+    async def create(self, db: AsyncConnection, url: str) -> int:
         """
         Here `create()` does not actually store short code in DB, it only stores url itself.
         :param db:
@@ -39,7 +36,8 @@ class ShortCodeStorage:
 
     async def get(self, db: AsyncConnection, url_id: int) -> CodeStorageGet:
         """
-        Decode `shard_id+primary_key` from code
+        Returns url stored in url_record with primary_key==url_id
+        :param url_id:
         :param db:
         :param short_code:
         :return:

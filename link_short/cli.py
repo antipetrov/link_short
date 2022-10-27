@@ -3,6 +3,7 @@ import sys
 
 import typer
 import sqlalchemy
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from config import get_settings, get_test_settings
@@ -56,10 +57,16 @@ def drop_test_db():
 
 
 async def async_stat_cleanup():
-    from storage.code_stat import ShortCodeStat
+    from storage.short_code_stat_crud import ShortCodeStatCRUD
     engine = await create_engine()
     async with engine.connect() as connection:
-        deleted_count = await ShortCodeStat().cleanup(db=connection, without_actual=True)
+        with connection.begin():
+            try:
+                deleted_count = await ShortCodeStatCRUD().cleanup(db=connection, without_actual=True)
+                connection.commit()
+            except SQLAlchemyError:
+                connection.rollback()
+
     sys.stdout.write(f"Stat cleanup completed. Stat records delete-result: {deleted_count}")
 
 
