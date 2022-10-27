@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from config import get_settings, get_test_settings
 from db.tables import metadata
 
-
 cli = typer.Typer()
 settings = get_settings()
 settings_test = get_test_settings()
@@ -56,24 +55,24 @@ def drop_test_db():
     sys.stdout.write(f"TestDB drop completed.")
 
 
-async def async_stat_cleanup():
+async def async_stat_cleanup(actual: bool):
     from storage.short_code_stat_crud import ShortCodeStatCRUD
     engine = await create_engine()
     async with engine.connect() as connection:
-        with connection.begin():
+        async with connection.begin():
             try:
-                deleted_count = await ShortCodeStatCRUD().cleanup(db=connection, without_actual=True)
-                connection.commit()
+                deleted_count = await ShortCodeStatCRUD().cleanup(db=connection, without_actual=not actual)
+                await connection.commit()
             except SQLAlchemyError:
-                connection.rollback()
+                await connection.rollback()
 
-    sys.stdout.write(f"Stat cleanup completed. Stat records delete-result: {deleted_count}")
+    sys.stdout.write(f"Stat cleanup completed. Actual records cleaned: {actual} Stat records delete-result: {deleted_count}")
 
 
 @cli.command()
-def stat_cleanup():
+def stat_cleanup(actual: bool = typer.Option(False, help="delete stat older than actual period")):
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(async_stat_cleanup())
+    loop.run_until_complete(async_stat_cleanup(actual))
 
 
 if __name__ == "__main__":
