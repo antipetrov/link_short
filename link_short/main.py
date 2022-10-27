@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from fastapi import FastAPI, HTTPException, Depends
 
-from coder.urlcoder import UrlCoder, UrlCoderData, UrlCoderDecodeError
+from coder.urlcoder import UrlCoder, UrlAddress, UrlCoderDecodeError
 from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest, UpdateCodeResponse, GetCodeResponse,\
                         GetCodeStatResponse, DeleteCodeResponse
 
@@ -15,10 +15,7 @@ from storage.errors import ShortCodeStorageError, ShortCodeStorageConfigError
 app = FastAPI()
 settings = get_settings()
 
-code_storage = ShortCodeStorage(
-    shard_id=settings.CURRENT_SHARD
-)
-
+code_storage = ShortCodeStorage()
 code_stat = ShortCodeStat()
 
 coder = UrlCoder(
@@ -31,11 +28,19 @@ coder = UrlCoder(
 
 @app.post('/urls/')
 async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get_db)):
-
-    try:
-        url_id = await code_storage.create(db, item.url)
-    except ShortCodeStorageConfigError:
-        raise HTTPException(status_code=500, detail="Service config error")
+    """
+    Creates new short_code for url
+    :param item:
+    :param db:
+    :return:
+    """
+    async with db.begin_nested():
+        try:
+            url_id = await code_storage.create(db, item.url)
+            await db.commit()
+        except ShortCodeStorageConfigError:
+            await db.rollback()
+            raise HTTPException(status_code=500, detail="Service config error")
 
     code = coder.encode(url_id)
 
@@ -44,10 +49,16 @@ async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get
 
 @app.get('/urls/{short_code}')
 async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)):
+    """
+    Shows url stored in short_code
+    :param short_code:
+    :param db:
+    :return:
+    """
 
     try:
-        code_data: UrlCoderData = coder.decode(short_code)
-        url_data = await code_storage.get(db, code_data.id)
+        url_address: UrlAddress = coder.decode(short_code)
+        url_data = await code_storage.get(db, url_address.id)
     except (ShortCodeNotFound, UrlCoderDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
@@ -58,8 +69,14 @@ async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)):
 
 @app.get('/urls/{short_code}/stats')
 async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
+    """
+    Shows view count for short_code in the actual period
+    :param short_code:
+    :param db:
+    :return:
+    """
     try:
-        code_data: UrlCoderData = coder.decode(short_code)
+        code_data: UrlAddress = coder.decode(short_code)
     except UrlCoderDecodeError:
         raise HTTPException(status_code=404, detail="Code not found")
 
@@ -69,11 +86,21 @@ async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
 
 @app.put('/urls/{short_code}')
 async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnection = Depends(get_db)):
+    """
+    Update url stored in short_code
+    :param short_code:
+    :param item:
+    :param db:
+    :return:
+    """
 
+    db.begin_nested()
     try:
-        code_data: UrlCoderData = coder.decode(short_code)
+        code_data: UrlAddress = coder.decode(short_code)
         update_count = await code_storage.update(db, code_data.id, item.url)
+        await db.commit()
     except (ShortCodeNotFound, ShortCodeDecodeError):
+        await db.rollback()
         raise HTTPException(status_code=404, detail="Code not found")
 
     return UpdateCodeResponse(updated=update_count > 0)
@@ -81,12 +108,22 @@ async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnect
 
 @app.delete('/urls/{short_code}')
 async def delete_code(short_code: str, db: AsyncConnection = Depends(get_db)):
+    """
+    Deletes short code
+    :param short_code:
+    :param db:
+    :return:
+    """
 
+    db.begin_nested()
     try:
-        code_data: UrlCoderData = coder.decode(short_code)
+        code_data: UrlAddress = coder.decode(short_code)
+
         delete_count = await code_storage.delete(db, code_data.id)
         deleted_stat_count = await code_stat.delete(db, code_data.id)
+        await db.commit()
     except ShortCodeStorageError:
+        await db.rollback()
         raise HTTPException(status_code=404, detail="Code not found")
 
     return DeleteCodeResponse(deleted=delete_count > 0)
