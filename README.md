@@ -19,11 +19,16 @@ Tested with `Python 3.9.7` &amp; `Postgres 13`
 ## Run
 
 1. Choose host and port for the server.
-2. Run `uvicorn` : 
+2. Run `uvicorn` (with any `host` and `port`) : 
 ```
-uvicorn main:app --host 0.0.0.0 --port 8080
+uvicorn main:app --host 127.0.0.1 --port 8080
 ```
 
+## OpenApi
+FastAPI-generated openAPI specs:
+- `http://127.0.0.1:8080/redoc` - ReDoc
+- `http://127.0.0.1:8080/docs` - Swagger
+- `http://127.0.0.1:8080/openapi.json` - json
 
 ## Tests
 ```
