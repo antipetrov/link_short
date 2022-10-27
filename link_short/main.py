@@ -9,8 +9,9 @@ from models.core import CreateCodeRequest, CreateCodeResponse, UpdateCodeRequest
 from config import get_settings
 from db.engine import get_db
 from storage.short_code_stat_crud import ShortCodeStatCRUD
-from storage.short_code_crud import ShortCodeCRUD, ShortCodeNotFound, ShortCodeDecodeError
-from storage.errors import ShortCodeStorageError, ShortCodeStorageConfigError
+from storage.short_code_crud import ShortCodeCRUD, ShortCodeNotFound
+from storage.errors import ShortCodeStorageError, ShortCodeStorageConfigError, ShortCodeDecodeError, \
+    ShortCodeStatSaveError
 
 app = FastAPI()
 settings = get_settings()
@@ -26,8 +27,8 @@ coder = UrlCoder(
 )
 
 
-@app.post('/urls/')
-async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get_db)):
+@app.post('/urls/', response_model=CreateCodeResponse)
+async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get_db)) -> dict:
     """
     Creates new short_code for url
     :param item:
@@ -44,11 +45,11 @@ async def create_code(item: CreateCodeRequest, db: AsyncConnection = Depends(get
 
     code = coder.encode(url_id)
 
-    return CreateCodeResponse(code=code)
+    return dict(code=code)
 
 
-@app.get('/urls/{short_code}')
-async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)):
+@app.get('/urls/{short_code}', response_model=GetCodeResponse,)
+async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)) -> CodeStorageGet:
     """
     Shows url stored in short_code
     :param short_code:
@@ -62,18 +63,20 @@ async def get_code(short_code: str, db: AsyncConnection = Depends(get_db)):
     except (ShortCodeNotFound, UrlCoderDecodeError):
         raise HTTPException(status_code=404, detail="Code not found")
 
-    await code_stat.save_event(db, url_data.id)
+    async with db.begin_nested():
+        try:
+            await code_stat.save_event(db, url_data.id)
+            await db.commit()
+        except ShortCodeStatSaveError:
+            await db.rollback()
 
-    return GetCodeResponse(url=url_data.url)
+    return url_data
 
 
-@app.get('/urls/{short_code}/stats')
-async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
+@app.get('/urls/{short_code}/stats', response_model=GetCodeStatResponse)
+async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)) -> dict:
     """
     Shows view count for short_code in the actual period
-    :param short_code:
-    :param db:
-    :return:
     """
     try:
         code_data: UrlAddress = coder.decode(short_code)
@@ -81,11 +84,11 @@ async def get_code_stat(short_code: str, db: AsyncConnection = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Code not found")
 
     count = await code_stat.actual_events_count(db, code_data.id, settings.STAT_ACTUAL_HOURS)
-    return GetCodeStatResponse(count=count)
+    return dict(count=count)
 
 
-@app.put('/urls/{short_code}')
-async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnection = Depends(get_db)):
+@app.put('/urls/{short_code}', response_model=UpdateCodeResponse)
+async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnection = Depends(get_db)) -> dict:
     """
     Update url stored in short_code
     :param short_code:
@@ -103,11 +106,11 @@ async def update_code(short_code: str, item: UpdateCodeRequest, db: AsyncConnect
         await db.rollback()
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return UpdateCodeResponse(updated=update_count > 0)
+    return dict(updated=update_count > 0)
 
 
-@app.delete('/urls/{short_code}')
-async def delete_code(short_code: str, db: AsyncConnection = Depends(get_db)):
+@app.delete('/urls/{short_code}', response_model=DeleteCodeResponse)
+async def delete_code(short_code: str, db: AsyncConnection = Depends(get_db)) -> dict:
     """
     Deletes short code
     :param short_code:
@@ -126,4 +129,4 @@ async def delete_code(short_code: str, db: AsyncConnection = Depends(get_db)):
         await db.rollback()
         raise HTTPException(status_code=404, detail="Code not found")
 
-    return DeleteCodeResponse(deleted=delete_count > 0)
+    return dict(deleted=delete_count > 0)
